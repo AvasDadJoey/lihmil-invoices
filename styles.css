@@ -810,6 +810,13 @@ input[type="date"] { min-height: var(--tap); }
   vertical-align: top;
 }
 
+.sp-mark {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #6D3284;
+}
+.line-total .sp-mark { color: var(--yellow); }
+
 .doc-table .r, .doc-table th.r { text-align: right; }
 .doc-table .c { text-align: center; }
 

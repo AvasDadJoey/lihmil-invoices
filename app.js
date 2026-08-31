@@ -133,6 +133,12 @@
     }
     return Number(line.sellPrice || (p && p.sellPrice) || 0);
   }
+  function isSpecialPrice(line) {
+    return lineDiscount(line) > 0.004;
+  }
+  function spMark(line) {
+    return isSpecialPrice(line) ? ' <b class="sp-mark">SP</b>' : "";
+  }
   function lineDiscount(line) {
     var qty = Number(line.qty) || 0;
     var unit = lineSell(line);
@@ -588,7 +594,7 @@
         (mode === "dollar"
           ? '<input type="number" min="0" step="0.01" data-line="' + idx + '" data-field="discountDollar" value="' + esc(line.discountDollar || "") + '" placeholder="Dollars off">'
           : "") +
-        '<div class="line-total"><span>Line total</span><b>' + money(lineTotal(line)) + "</b></div>" +
+        '<div class="line-total"><span>Line total' + (isSpecialPrice(line) ? ' <b class="sp-mark">SP</b>' : "") + '</span><b>' + money(lineTotal(line)) + "</b></div>" +
       "</div>";
     }).join("");
 
@@ -967,9 +973,11 @@
     var cust = getCustomer(inv.customerId);
     var rows = (inv.lines || []).map(function (l) {
       var disc = lineDiscount(l);
-      return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(lineDesc(l)) +
+      var sp = isSpecialPrice(l);
+      return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(lineDesc(l)) + spMark(l) +
         "</td><td class=\"r\">" + money(lineSell(l)) + "</td><td class=\"r\">" +
-        (disc ? "−" + money(disc) : "—") + "</td><td class=\"r\">" + money(lineTotal(l)) + "</td></tr>";
+        (disc ? (sp ? "<b class=\"sp-mark\">SP</b> " : "") + "−" + money(disc) : "—") +
+        "</td><td class=\"r\">" + money(lineTotal(l)) + (sp ? " <b class=\"sp-mark\">SP</b>" : "") + "</td></tr>";
     }).join("");
     if (inv.fscChoice === "yes") {
       rows += "<tr><td class=\"c\">1</td><td>Fuel surcharge</td><td class=\"r\">" +
