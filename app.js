@@ -269,9 +269,8 @@
     var cu = customers().length;
     appEl.innerHTML =
       '<div class="screen home">' +
-        '<div class="logo-wrap"><img src="img/logo.jpeg" alt="Lihmil logo"></div>' +
-        '<h1 class="home-title">Lihmil Invoices</h1>' +
-        '<p class="home-tag">FLOWERS • SUPPLIES</p>' +
+        '<div class="logo-wrap"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
+        '<p class="home-tag">INVOICES</p>' +
         '<button class="btn btn-purple btn-giant" data-go="#/invoice/new">New Invoice</button>' +
         '<div class="home-nav">' +
           '<button class="nav-row" data-go="#/drafts">Drafts' + (d ? '<span class="badge yellow">' + d + "</span>" : "") + '<span class="chev">›</span></button>' +
@@ -758,8 +757,7 @@
         money(fscAmt(inv)) + "</td><td class=\"r\">—</td><td class=\"r\">" + money(fscAmt(inv)) + "</td></tr>";
     }
     return '<div class="invoice-doc">' +
-      '<div class="doc-brand"><img src="img/logo.jpeg" alt="Lihmil">' +
-        "<div><h2>LIHMIL</h2><div class=\"sub\">" + COMPANY.tag + "</div></div></div>" +
+      '<div class="doc-brand"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
       '<p class="doc-addr">' + COMPANY.city + "<br>" + COMPANY.street + "<br>" + COMPANY.zip +
         "<br>Tel: " + COMPANY.tel + " · Fax: " + COMPANY.fax + "</p>" +
       '<div class="doc-meta">' +

@@ -1,4 +1,4 @@
-const CACHE = "lihmil-invoices-v1";
+const CACHE = "lihmil-invoices-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,9 +6,10 @@ const ASSETS = [
   "./app.js",
   "./catalog.js",
   "./manifest.json",
-  "./img/logo.jpeg",
+  "./img/logo-wide.png",
   "./img/icon-192.png",
-  "./img/icon-512.png"
+  "./img/icon-512.png",
+  "./img/emblem.png"
 ];
 
 self.addEventListener("install", function (event) {
