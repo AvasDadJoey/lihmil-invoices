@@ -1,4 +1,4 @@
-const CACHE = "lihmil-invoices-v6";
+const CACHE = "lihmil-invoices-v7";
 const ASSETS = [
   "./",
   "./index.html",

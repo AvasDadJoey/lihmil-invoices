@@ -971,71 +971,95 @@
 
   function invoiceDocHtml(inv) {
     var t = docType(inv);
-    var brand = '<div class="doc-brand"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
-      '<p class="doc-addr">' + COMPANY.city + "<br>" + COMPANY.street + "<br>" + COMPANY.zip +
+    var heading = t === "dump" ? "DUMP LIST" : t === "inventory" ? "INVENTORY REPORT" : "INVOICE";
+    var numLabel = (t === "dump" ? "DUMP" : t === "inventory" ? "INVENTORY" : "INVOICE") + " #" + padInv(inv.number);
+    var logo = '<div class="doc-brand"><img src="img/logo-wide.png" alt="Lihmil"></div>';
+    var addr = '<p class="doc-addr">' + COMPANY.city + "<br>" + COMPANY.street + "<br>" + COMPANY.zip +
       "<br>Tel: " + COMPANY.tel + " · Fax: " + COMPANY.fax + "</p>";
     var signed = inv.signature
       ? '<div class="doc-sign"><b>' + (isCountDoc(inv) ? "Sales rep signature" : "Customer signature") +
         '</b><img src="' + inv.signature + '" alt="Signature">' +
         '<div class="when">Signed ' + esc(fmtDate((inv.signedAt || "").slice(0, 10)) || fmtDate(inv.date)) + "</div></div>"
       : "";
+    var itemRows = [];
     if (t === "dump" || t === "inventory") {
-      var heading = t === "dump" ? "DUMP LIST" : "INVENTORY REPORT";
-      var rows = (inv.lines || []).map(function (l) {
+      itemRows = (inv.lines || []).map(function (l) {
         return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(l.name) +
           (l.packNote ? " " + esc(l.packNote) : "") + "</td><td>" + esc(l.color || "—") + "</td></tr>";
-      }).join("");
-      return '<div class="invoice-doc">' + brand +
-        '<div class="doc-heading">' + heading + "</div>" +
-        '<div class="doc-meta">' +
-          "<div><b>" + heading.split(" ")[0] + "</b> #" + padInv(inv.number) + "</div>" +
+      });
+    } else {
+      itemRows = (inv.lines || []).map(function (l) {
+        var disc = lineDiscount(l);
+        var sp = isSpecialPrice(l);
+        return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(lineDesc(l)) + spMark(l) +
+          "</td><td class=\"r\">" + money(lineSell(l)) + "</td><td class=\"r\">" +
+          (disc ? (sp ? "<b class=\"sp-mark\">SP</b> " : "") + "−" + money(disc) : "—") +
+          "</td><td class=\"r\">" + money(lineTotal(l)) + (sp ? " <b class=\"sp-mark\">SP</b>" : "") + "</td></tr>";
+      });
+      if (inv.fscChoice === "yes") {
+        itemRows.push("<tr><td class=\"c\">1</td><td>Fuel surcharge</td><td class=\"r\">" +
+          money(fscAmt(inv)) + "</td><td class=\"r\">—</td><td class=\"r\">" + money(fscAmt(inv)) + "</td></tr>");
+      }
+    }
+    var tableHead = (t === "dump" || t === "inventory")
+      ? '<thead><tr><th class="c">Qty</th><th>Item</th><th>Color</th></tr></thead>'
+      : '<thead><tr><th class="c">Qty</th><th>Item</th><th class="r">Price</th><th class="r">Disc</th><th class="r">Amount</th></tr></thead>';
+    var cust = t === "invoice" ? getCustomer(inv.customerId) : null;
+    var metaFirst = t === "invoice"
+      ? '<div class="doc-meta">' +
+          "<div><b>INVOICE</b> #" + padInv(inv.number) + "</div>" +
+          "<div><b>DATE</b> " + esc(fmtDate(inv.date)) + "</div>" +
+          "<div><b>CUSTOMER</b> " + esc((cust && cust.name) || "—") + "</div>" +
+          "<div><b>PAYMENT</b> " + esc(inv.payment || "—") + "</div></div>"
+      : '<div class="doc-meta">' +
+          "<div><b>" + (t === "dump" ? "DUMP" : "INVENTORY") + "</b> #" + padInv(inv.number) + "</div>" +
           "<div><b>DATE</b> " + esc(fmtDate(inv.date)) + "</div>" +
           "<div><b>ROUTE / TRUCK</b> " + esc((inv.routeTruck || "").trim() || "—") + "</div>" +
-          "<div><b>ITEMS</b> " + (inv.lines || []).length + "</div>" +
-        "</div>" +
-        '<table class="doc-table"><thead><tr><th class="c">Qty</th><th>Item</th><th>Color</th></tr></thead>' +
-        "<tbody>" + rows + "</tbody></table>" +
-        signed +
-      "</div>";
-    }
-    var cust = getCustomer(inv.customerId);
-    var rows = (inv.lines || []).map(function (l) {
-      var disc = lineDiscount(l);
-      var sp = isSpecialPrice(l);
-      return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(lineDesc(l)) + spMark(l) +
-        "</td><td class=\"r\">" + money(lineSell(l)) + "</td><td class=\"r\">" +
-        (disc ? (sp ? "<b class=\"sp-mark\">SP</b> " : "") + "−" + money(disc) : "—") +
-        "</td><td class=\"r\">" + money(lineTotal(l)) + (sp ? " <b class=\"sp-mark\">SP</b>" : "") + "</td></tr>";
-    }).join("");
-    if (inv.fscChoice === "yes") {
-      rows += "<tr><td class=\"c\">1</td><td>Fuel surcharge</td><td class=\"r\">" +
-        money(fscAmt(inv)) + "</td><td class=\"r\">—</td><td class=\"r\">" + money(fscAmt(inv)) + "</td></tr>";
-    }
-    return '<div class="invoice-doc">' +
-      '<div class="doc-brand"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
-      '<p class="doc-addr">' + COMPANY.city + "<br>" + COMPANY.street + "<br>" + COMPANY.zip +
-        "<br>Tel: " + COMPANY.tel + " · Fax: " + COMPANY.fax + "</p>" +
-      '<div class="doc-meta">' +
-        "<div><b>INVOICE</b> #" + padInv(inv.number) + "</div>" +
-        "<div><b>DATE</b> " + esc(fmtDate(inv.date)) + "</div>" +
-        "<div><b>CUSTOMER</b> " + esc((cust && cust.name) || "—") + "</div>" +
-        "<div><b>PAYMENT</b> " + esc(inv.payment || "—") + "</div>" +
-      "</div>" +
-      '<table class="doc-table"><thead><tr><th class="c">Qty</th><th>Item</th><th class="r">Price</th><th class="r">Disc</th><th class="r">Amount</th></tr></thead>' +
-      "<tbody>" + rows + "</tbody></table>" +
-      '<div class="doc-foot">' +
+          "<div><b>ITEMS</b> " + (inv.lines || []).length + "</div></div>";
+    var footer = "";
+    if (t === "invoice") {
+      footer = '<div class="doc-foot">' +
         '<div class="totals-row" style="color:#555"><span>Merchandise</span><span>' + money(merchTotal(inv)) + "</span></div>" +
         (inv.fscChoice === "yes" ? '<div class="totals-row" style="color:#555"><span>Fuel surcharge</span><span>' + money(fscAmt(inv)) + "</span></div>" : "") +
         '<div class="totals-row" style="color:#555"><span>Tax</span><span>$0.00</span></div>' +
-        '<div class="doc-total"><span>TOTAL AMOUNT DUE</span><b>' + money(grandTotal(inv)) + "</b></div>" +
-      "</div>" +
-      '<div class="doc-pay">Paid by <strong>' + esc(inv.payment || "—") + "</strong>" +
-        (inv.fscChoice === "no" ? " · FSC waived" : "") + "</div>" +
-      (inv.signature
-        ? '<div class="doc-sign"><b>Customer signature</b><img src="' + inv.signature + '" alt="Signature">' +
-          '<div class="when">Signed ' + esc(fmtDate((inv.signedAt || "").slice(0, 10)) || fmtDate(inv.date)) + "</div></div>"
-        : "") +
-    "</div>";
+        '<div class="doc-total"><span>TOTAL AMOUNT DUE</span><b>' + money(grandTotal(inv)) + "</b></div></div>" +
+        '<div class="doc-pay">Paid by <strong>' + esc(inv.payment || "—") + "</strong>" +
+          (inv.fscChoice === "no" ? " · FSC waived" : "") + "</div>";
+    }
+    footer += signed;
+
+    var FIRST = 12;
+    var NEXT = 18;
+    var chunks = [];
+    if (!itemRows.length) chunks = [[]];
+    else {
+      chunks.push(itemRows.slice(0, FIRST));
+      for (var i = FIRST; i < itemRows.length; i += NEXT) chunks.push(itemRows.slice(i, i + NEXT));
+    }
+    var totalPages = chunks.length;
+
+    function pageChrome(page) {
+      var banner = '<div class="page-banner">' +
+        '<div class="page-banner-id">' + esc(numLabel) + "</div>" +
+        (totalPages > 1 ? '<div class="page-banner-pg">Page ' + page + " of " + totalPages + "</div>" : "") +
+        "</div>";
+      if (page === 1) {
+        return logo + addr + '<div class="doc-heading">' + heading + "</div>" + metaFirst +
+          (totalPages > 1 ? banner : "");
+      }
+      return logo + banner;
+    }
+
+    return chunks.map(function (chunk, idx) {
+      var page = idx + 1;
+      var last = page === totalPages;
+      var body = chunk.length ? chunk.join("") : '<tr><td colspan="5" class="c muted">No items</td></tr>';
+      return '<div class="invoice-doc print-page">' +
+        pageChrome(page) +
+        '<table class="doc-table">' + tableHead + "<tbody>" + body + "</tbody></table>" +
+        (last ? footer : '<p class="cont-note">Continued on next page</p>') +
+      "</div>";
+    }).join("");
   }
 
   function renderDone(inv) {

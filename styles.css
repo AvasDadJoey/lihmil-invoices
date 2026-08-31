@@ -911,6 +911,40 @@ input[type="date"] { min-height: var(--tap); }
   box-shadow: var(--shadow);
 }
 
+
+.page-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+  color: #1a1a1a;
+}
+.page-banner-id {
+  font-weight: 800;
+  font-size: 14px;
+  color: #6D3284;
+  letter-spacing: 0.04em;
+}
+.page-banner-pg {
+  font-weight: 800;
+  font-size: 13px;
+  color: #6D3284;
+  white-space: nowrap;
+}
+.cont-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: #666;
+  text-align: right;
+}
+.print-page + .print-page {
+  margin-top: 18px;
+}
+
 .form-stack { display: flex; flex-direction: column; gap: 4px; }
 
 hr.sep {
@@ -952,10 +986,34 @@ hr.sep {
   .screen, .done-screen {
     padding: 0 !important;
   }
-  .invoice-doc {
+  .print-page + .print-page { margin-top: 0; }
+  .invoice-doc, .print-page {
     box-shadow: none;
     border-radius: 0;
-    padding: 0;
+    padding: 10px 12px 16px;
+    break-inside: avoid;
   }
-  .doc-total, .doc-brand { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .doc-brand {
+    background: #0B0B0C !important;
+    margin: 0 0 10px !important;
+    padding: 12px 10px !important;
+    border-radius: 0;
+    border-bottom: 3px solid #F9D224;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .doc-brand img {
+    max-width: 280px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .doc-total { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
