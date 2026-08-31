@@ -284,6 +284,26 @@ input[type="date"] { min-height: var(--tap); }
   font-size: 13px;
 }
 
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-actions .btn-giant {
+  min-height: 56px;
+  font-size: 20px;
+}
+
+.doc-heading {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #6D3284;
+  margin: 0 0 12px;
+}
+
 .home-nav {
   display: flex;
   flex-direction: column;

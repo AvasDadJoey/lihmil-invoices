@@ -5,8 +5,11 @@
     customers: "lihmil.customers",
     invoices: "lihmil.invoices",
     nextNum: "lihmil.nextNum",
+    nextDump: "lihmil.nextDumpNum",
+    nextInv: "lihmil.nextInvNum",
     settings: "lihmil.settings"
   };
+  var MIX_COLORS = ["White", "Cream", "Yellow", "Orange", "Peach", "Pink", "Hot Pink", "Red", "Burgundy", "Lavender", "Purple", "Green", "Bi-color"];
   var PAYMENTS = ["CHECK", "CASH", "CARD", "BILL TO ACCOUNT"];
   var PERCENTS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
   var COMPANY = {
@@ -53,6 +56,26 @@
   }
   function padInv(n) {
     return String(n).padStart(5, "0");
+  }
+  function bumpNamed(key) {
+    var n = parseInt(localStorage.getItem(key) || "1", 10);
+    if (!n || n < 1) n = 1;
+    localStorage.setItem(key, String(n + 1));
+    return n;
+  }
+  function docType(d) { return (d && d.type) || "invoice"; }
+  function isCountDoc(d) { var t = docType(d); return t === "dump" || t === "inventory"; }
+  function typeLabel(d) {
+    var t = docType(d);
+    if (t === "dump") return "Dump";
+    if (t === "inventory") return "Inventory";
+    return "Invoice";
+  }
+  function docPath(d) { return "#/" + docType(d) + "/" + d.id; }
+  function lineColors(p) {
+    var cols = colorList(p);
+    if (cols.length) return cols;
+    return MIX_COLORS.map(function (n) { return { name: n, listedPrice: p && p.listedPrice, sellPrice: p && p.sellPrice }; });
   }
   function money(n) {
     n = Number(n) || 0;
@@ -146,13 +169,22 @@
   }
   function completeBlockers(inv) {
     var reasons = [];
-    if (!inv.customerId) reasons.push("Pick a customer");
+    var t = docType(inv);
     if (!inv.lines || !inv.lines.length) reasons.push("Add at least one flower");
     (inv.lines || []).forEach(function (l) {
-      if (needsColor(l) && !l.color) reasons.push("Pick a color for " + l.name);
+      if (t === "invoice") {
+        if (needsColor(l) && !l.color) reasons.push("Pick a color for " + l.name);
+      } else if (!l.color) {
+        reasons.push("Pick a color for " + l.name);
+      }
     });
-    if (inv.fscChoice !== "yes" && inv.fscChoice !== "no") reasons.push("Choose Fuel Surcharge: Charge or Waive");
-    if (!inv.payment) reasons.push("Choose how they pay");
+    if (t === "invoice") {
+      if (!inv.customerId) reasons.push("Pick a customer");
+      if (inv.fscChoice !== "yes" && inv.fscChoice !== "no") reasons.push("Choose Fuel Surcharge: Charge or Waive");
+      if (!inv.payment) reasons.push("Choose how they pay");
+    } else {
+      if (!(inv.routeTruck || "").trim()) reasons.push("Enter the Route / Truck");
+    }
     return reasons;
   }
   function getInvoice(id) {
@@ -211,17 +243,18 @@
     if (parts[0] === "completed") return renderList("complete");
     if (parts[0] === "customers") return renderCustomers();
     if (parts[0] === "settings") return renderSettings();
-    if (parts[0] === "invoice" && parts[1] === "new") {
-      var inv = newInvoice();
-      putInvoice(inv);
-      location.replace("#/invoice/" + inv.id);
+    if ((parts[0] === "invoice" || parts[0] === "dump" || parts[0] === "inventory") && parts[1] === "new") {
+      var made = parts[0] === "dump" ? newDump() : parts[0] === "inventory" ? newInventory() : newInvoice();
+      putInvoice(made);
+      location.replace("#/" + parts[0] + "/" + made.id);
       return;
     }
-    if (parts[0] === "invoice" && parts[1]) {
+    if ((parts[0] === "invoice" || parts[0] === "dump" || parts[0] === "inventory") && parts[1]) {
       var inv2 = getInvoice(parts[1]);
       if (!inv2) return renderHome();
       if (parts[2] === "sign") return renderSign(inv2);
       if (parts[2] === "done") return renderDone(inv2);
+      if (isCountDoc(inv2)) return renderCountDoc(inv2);
       return renderInvoice(inv2);
     }
     renderHome();
@@ -231,6 +264,7 @@
     var n = bumpNum();
     return {
       id: uid(),
+      type: "invoice",
       number: n,
       date: todayNY(),
       customerId: "",
@@ -238,6 +272,36 @@
       fscChoice: "",
       fscAmount: settings().fscDefault,
       payment: "",
+      signature: "",
+      signedAt: "",
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+  function newDump() {
+    return {
+      id: uid(),
+      type: "dump",
+      number: bumpNamed(KEYS.nextDump),
+      date: todayNY(),
+      routeTruck: "",
+      lines: [],
+      signature: "",
+      signedAt: "",
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+  function newInventory() {
+    return {
+      id: uid(),
+      type: "inventory",
+      number: bumpNamed(KEYS.nextInv),
+      date: todayNY(),
+      routeTruck: "",
+      lines: [],
       signature: "",
       signedAt: "",
       status: "draft",
@@ -270,8 +334,12 @@
     appEl.innerHTML =
       '<div class="screen home">' +
         '<div class="logo-wrap"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
-        '<p class="home-tag">INVOICES</p>' +
-        '<button class="btn btn-purple btn-giant" data-go="#/invoice/new">New Invoice</button>' +
+        '<p class="home-tag">KERNERSVILLE</p>' +
+        '<div class="home-actions">' +
+          '<button class="btn btn-purple btn-giant" data-go="#/invoice/new">New Invoice</button>' +
+          '<button class="btn btn-yellow btn-giant" data-go="#/dump/new">New Dump</button>' +
+          '<button class="btn btn-ghost btn-giant" data-go="#/inventory/new">New Inventory</button>' +
+        '</div>' +
         '<div class="home-nav">' +
           '<button class="nav-row" data-go="#/drafts">Drafts' + (d ? '<span class="badge yellow">' + d + "</span>" : "") + '<span class="chev">›</span></button>' +
           '<button class="nav-row" data-go="#/completed">Completed' + (c ? '<span class="badge">' + c + "</span>" : "") + '<span class="chev">›</span></button>' +
@@ -285,11 +353,17 @@
     var items = kind === "draft" ? drafts() : completed();
     var title = kind === "draft" ? "Drafts" : "Completed";
     var rows = items.map(function (inv) {
+      var t = docType(inv);
       var cust = getCustomer(inv.customerId);
-      return '<button class="list-row" data-go="#/invoice/' + inv.id + (kind === "complete" ? "/done" : "") + '">' +
-        '<div class="grow"><strong>Invoice ' + padInv(inv.number) + '</strong>' +
-        "<small>" + esc((cust && cust.name) || "No customer") + " · " + esc(fmtDate(inv.date)) + "</small></div>" +
-        '<span class="amt">' + money(grandTotal(inv)) + "</span></button>";
+      var sub = t === "invoice"
+        ? ((cust && cust.name) || "No customer")
+        : ((inv.routeTruck || "").trim() || "No route / truck");
+      var right = t === "invoice" ? money(grandTotal(inv)) : ((inv.lines || []).length + " items");
+      var href = docPath(inv) + (kind === "complete" ? "/done" : "");
+      return '<button class="list-row" data-go="' + href + '">' +
+        '<div class="grow"><strong>' + typeLabel(inv) + " " + padInv(inv.number) + '</strong>' +
+        "<small>" + esc(sub) + " · " + esc(fmtDate(inv.date)) + "</small></div>" +
+        '<span class="amt">' + esc(right) + "</span></button>";
     }).join("");
     appEl.innerHTML =
       '<div class="screen">' + topbar(title, "#/") +
@@ -335,6 +409,119 @@
       save(KEYS.settings, { fscDefault: n });
       toast("Saved");
     };
+  }
+
+  function renderCountDoc(doc) {
+    var t = docType(doc);
+    var title = t === "dump" ? "Dump " + padInv(doc.number) : "Inventory " + padInv(doc.number);
+    var q = state.search || "";
+    var resultsHtml = "";
+    if (q.trim()) {
+      var qq = q.trim().toLowerCase();
+      var hits = CATALOG.filter(function (p) {
+        return (p.name + " " + (p.packNote || "") + " " + p.category).toLowerCase().indexOf(qq) !== -1;
+      }).slice(0, 20);
+      resultsHtml = hits.length
+        ? '<div class="results">' + hits.map(function (p) {
+            return '<button class="result" data-add="' + p.id + '">' +
+              '<div class="meta"><b>' + esc(p.name) + "</b><small>" +
+              esc(p.category) + (p.packNote ? " · " + esc(p.packNote) : "") +
+              "</small></div></button>";
+          }).join("") + "</div>"
+        : '<p class="hint">No flowers match “' + esc(q) + '”.</p>';
+    } else {
+      resultsHtml = '<p class="hint">Search flowers, then tap to add them.</p>';
+    }
+
+    var linesHtml = (doc.lines || []).map(function (line, idx) {
+      var prod = productById(line.productId);
+      var cols = lineColors(prod || { colors: MIX_COLORS });
+      return '<div class="line' + (state.flashLine === line.id ? " flash" : "") + '">' +
+        '<div class="line-head"><div class="name">' + esc(line.name) +
+        (line.packNote ? '<span class="pack">' + esc(line.packNote) + "</span>" : "") +
+        "</div>" +
+        '<button class="line-remove" data-del-line="' + idx + '" aria-label="Remove">×</button></div>' +
+        '<label class="field-label">Color</label><select data-line="' + idx + '" data-field="color">' +
+          '<option value="">Select color…</option>' +
+          cols.map(function (c) {
+            return '<option value="' + esc(c.name) + '"' + (line.color === c.name ? " selected" : "") + ">" +
+              esc(c.name) + "</option>";
+          }).join("") + "</select>" +
+        (!line.color ? '<div class="warn">Color required</div>' : "") +
+        '<label class="field-label">Quantity</label>' +
+        '<div class="stepper">' +
+          '<button type="button" data-qty="' + idx + '" data-d="-1">−</button>' +
+          '<input inputmode="numeric" data-line="' + idx + '" data-field="qty" value="' + esc(line.qty) + '">' +
+          '<button type="button" data-qty="' + idx + '" data-d="1">+</button>' +
+        "</div></div>";
+    }).join("");
+
+    var blockers = completeBlockers(doc);
+    appEl.innerHTML =
+      '<div class="screen with-bar">' +
+        topbar(title, "#/") +
+        '<div class="card"><h2>Date</h2>' +
+          '<input type="date" id="invDate" value="' + esc(doc.date) + '">' +
+        "</div>" +
+        '<div class="card"><h2>Route / Truck</h2>' +
+          '<input id="routeTruck" placeholder="Route or truck number" value="' + esc(doc.routeTruck || "") + '">' +
+          (!(doc.routeTruck || "").trim() ? '<div class="warn">Required before completing</div>' : "") +
+        "</div>" +
+        '<div class="search-sticky"><input id="q" placeholder="Search flowers" value="' + esc(q) + '"></div>' +
+        resultsHtml +
+        (doc.lines.length ? '<h2 class="section-label">Items</h2>' + linesHtml : "") +
+      "</div>" +
+      '<div class="complete-bar">' +
+        (blockers.length ? '<div class="complete-msg">' + esc(blockers[0]) + "</div>" : "") +
+        '<button class="btn btn-yellow btn-giant"' + (blockers.length ? " disabled" : "") + ' data-complete="1">Complete</button>' +
+      "</div>";
+
+    bindSearch();
+    var dateEl = document.getElementById("invDate");
+    if (dateEl) dateEl.onchange = function () { doc.date = dateEl.value; scheduleSave(doc); };
+    var rt = document.getElementById("routeTruck");
+    if (rt) {
+      rt.oninput = function () { doc.routeTruck = rt.value; scheduleSave(doc); };
+      rt.onchange = function () { doc.routeTruck = rt.value; scheduleSave(doc); renderCountDoc(doc); };
+    }
+    appEl.querySelectorAll("[data-add]").forEach(function (btn) {
+      btn.onclick = function () { addLine(doc, btn.getAttribute("data-add")); };
+    });
+    appEl.querySelectorAll("[data-del-line]").forEach(function (btn) {
+      btn.onclick = function () {
+        doc.lines.splice(Number(btn.getAttribute("data-del-line")), 1);
+        scheduleSave(doc); renderCountDoc(doc);
+      };
+    });
+    appEl.querySelectorAll("[data-qty]").forEach(function (btn) {
+      btn.onclick = function () {
+        var i = Number(btn.getAttribute("data-qty"));
+        var d = Number(btn.getAttribute("data-d"));
+        doc.lines[i].qty = Math.max(1, (Number(doc.lines[i].qty) || 1) + d);
+        scheduleSave(doc); renderCountDoc(doc);
+      };
+    });
+    appEl.querySelectorAll("[data-line]").forEach(function (el) {
+      el.onchange = el.onblur = function () {
+        var i = Number(el.getAttribute("data-line"));
+        var field = el.getAttribute("data-field");
+        var line = doc.lines[i];
+        if (field === "qty") {
+          var qn = parseFloat(el.value);
+          line.qty = !qn || qn < 0 ? 1 : qn;
+        } else if (field === "color") {
+          line.color = el.value;
+        }
+        scheduleSave(doc); renderCountDoc(doc);
+      };
+    });
+    var completeBtn = appEl.querySelector("[data-complete]");
+    if (completeBtn && !blockers.length) {
+      completeBtn.onclick = function () {
+        putInvoice(doc);
+        go(docPath(doc) + "/sign");
+      };
+    }
   }
 
   function renderInvoice(inv) {
@@ -562,7 +749,8 @@
     state.search = "";
     state.flashLine = line.id;
     scheduleSave(inv);
-    renderInvoice(inv);
+    if (isCountDoc(inv)) renderCountDoc(inv);
+    else renderInvoice(inv);
     setTimeout(function () { state.flashLine = null; }, 800);
   }
 
@@ -577,7 +765,10 @@
       else {
         var id = (h.split("/")[2] || "");
         var inv = getInvoice(id);
-        if (inv) renderInvoice(inv);
+        if (inv) {
+          if (isCountDoc(inv)) renderCountDoc(inv);
+          else renderInvoice(inv);
+        }
       }
       var q2 = document.getElementById("q");
       if (q2) {
@@ -663,13 +854,13 @@
   }
 
   function renderSign(inv) {
-    if (inv.status === "complete") { go("#/invoice/" + inv.id + "/done"); return; }
+    if (inv.status === "complete") { go(docPath(inv) + "/done"); return; }
     var blockers = completeBlockers(inv);
-    if (blockers.length) { go("#/invoice/" + inv.id); toast(blockers[0]); return; }
+    if (blockers.length) { go(docPath(inv)); toast(blockers[0]); return; }
     appEl.innerHTML =
       '<div class="screen sign-screen">' +
-        topbar("Customer signature", "#/invoice/" + inv.id) +
-        '<p class="hint">Have them sign with their finger.</p>' +
+        topbar(isCountDoc(inv) ? "Sales rep signature" : "Customer signature", docPath(inv)) +
+        '<p class="hint">' + (isCountDoc(inv) ? "Sales rep signs with their finger to complete." : "Have the customer sign with their finger.") + '</p>' +
         '<div class="sign-frame"><canvas id="sig"></canvas><div class="sign-hint" id="sigHint">Sign here</div></div>' +
         '<div class="sign-actions">' +
           '<button class="btn btn-ghost" id="sigClear">Clear</button>' +
@@ -733,7 +924,7 @@
       inv.status = "complete";
       inv.updatedAt = Date.now();
       putInvoice(inv);
-      go("#/invoice/" + inv.id + "/done");
+      go(docPath(inv) + "/done");
     };
   }
 
@@ -745,6 +936,34 @@
   }
 
   function invoiceDocHtml(inv) {
+    var t = docType(inv);
+    var brand = '<div class="doc-brand"><img src="img/logo-wide.png" alt="Lihmil"></div>' +
+      '<p class="doc-addr">' + COMPANY.city + "<br>" + COMPANY.street + "<br>" + COMPANY.zip +
+      "<br>Tel: " + COMPANY.tel + " · Fax: " + COMPANY.fax + "</p>";
+    var signed = inv.signature
+      ? '<div class="doc-sign"><b>' + (isCountDoc(inv) ? "Sales rep signature" : "Customer signature") +
+        '</b><img src="' + inv.signature + '" alt="Signature">' +
+        '<div class="when">Signed ' + esc(fmtDate((inv.signedAt || "").slice(0, 10)) || fmtDate(inv.date)) + "</div></div>"
+      : "";
+    if (t === "dump" || t === "inventory") {
+      var heading = t === "dump" ? "DUMP LIST" : "INVENTORY REPORT";
+      var rows = (inv.lines || []).map(function (l) {
+        return "<tr><td class=\"c\">" + esc(l.qty) + "</td><td>" + esc(l.name) +
+          (l.packNote ? " " + esc(l.packNote) : "") + "</td><td>" + esc(l.color || "—") + "</td></tr>";
+      }).join("");
+      return '<div class="invoice-doc">' + brand +
+        '<div class="doc-heading">' + heading + "</div>" +
+        '<div class="doc-meta">' +
+          "<div><b>" + heading.split(" ")[0] + "</b> #" + padInv(inv.number) + "</div>" +
+          "<div><b>DATE</b> " + esc(fmtDate(inv.date)) + "</div>" +
+          "<div><b>ROUTE / TRUCK</b> " + esc((inv.routeTruck || "").trim() || "—") + "</div>" +
+          "<div><b>ITEMS</b> " + (inv.lines || []).length + "</div>" +
+        "</div>" +
+        '<table class="doc-table"><thead><tr><th class="c">Qty</th><th>Item</th><th>Color</th></tr></thead>' +
+        "<tbody>" + rows + "</tbody></table>" +
+        signed +
+      "</div>";
+    }
     var cust = getCustomer(inv.customerId);
     var rows = (inv.lines || []).map(function (l) {
       var disc = lineDiscount(l);
@@ -786,7 +1005,7 @@
   function renderDone(inv) {
     appEl.innerHTML =
       '<div class="screen done-screen">' +
-        '<div class="no-print">' + topbar("Invoice " + padInv(inv.number), "#/") +
+        '<div class="no-print">' + topbar(typeLabel(inv) + " " + padInv(inv.number), "#/") +
         '<div class="doc-actions">' +
           '<button class="btn btn-purple" id="doPrint">Print / PDF</button>' +
           '<button class="btn btn-ghost" id="doShare">Share</button>' +
@@ -798,8 +1017,8 @@
     document.getElementById("doShare").onclick = function () {
       if (navigator.share) {
         navigator.share({
-          title: "Lihmil Invoice " + padInv(inv.number),
-          text: "Invoice " + padInv(inv.number) + " · Total due " + money(grandTotal(inv))
+          title: "Lihmil " + typeLabel(inv) + " " + padInv(inv.number),
+          text: typeLabel(inv) + " " + padInv(inv.number) + (isCountDoc(inv) ? " · " + (inv.routeTruck || "") : " · Total due " + money(grandTotal(inv)))
         }).catch(function () {});
       } else {
         window.print();
