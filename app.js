@@ -391,7 +391,7 @@
     }).join("");
     appEl.innerHTML =
       '<div class="screen">' + topbar("Customers", "#/") +
-      '<div class="search-sticky"><input id="q" placeholder="Search customers" value="' + esc(state.search) + '"></div>' +
+      '<div class="search-sticky"><input id="q" placeholder="Search customers" autocomplete="off" enterkeyhint="search" value="' + esc(state.search) + '"></div>' +
       '<button class="btn btn-purple btn-block" data-new-cust="1" style="margin-bottom:12px">Create customer</button>' +
       (rows ? '<div class="list">' + rows + "</div>" : '<div class="empty">No customers yet.</div>') +
       "</div>";
@@ -473,7 +473,7 @@
           '<input id="routeTruck" placeholder="Route or truck number" value="' + esc(doc.routeTruck || "") + '">' +
           (!(doc.routeTruck || "").trim() ? '<div class="warn">Required before completing</div>' : "") +
         "</div>" +
-        '<div class="search-sticky"><input id="q" placeholder="Search flowers" value="' + esc(q) + '"></div>' +
+        '<div class="search-sticky"><input id="q" placeholder="Search flowers" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="' + esc(q) + '"></div>' +
         resultsHtml +
         (doc.lines.length ? '<h2 class="section-label">Items</h2>' + linesHtml : "") +
       "</div>" +
@@ -488,7 +488,7 @@
     var rt = document.getElementById("routeTruck");
     if (rt) {
       rt.oninput = function () { doc.routeTruck = rt.value; scheduleSave(doc); };
-      rt.onchange = function () { doc.routeTruck = rt.value; scheduleSave(doc); renderCountDoc(doc); };
+      rt.onchange = function () { doc.routeTruck = rt.value; scheduleSave(doc); redrawDoc(doc); };
     }
     appEl.querySelectorAll("[data-add]").forEach(function (btn) {
       btn.onclick = function () { addLine(doc, btn.getAttribute("data-add")); };
@@ -496,7 +496,7 @@
     appEl.querySelectorAll("[data-del-line]").forEach(function (btn) {
       btn.onclick = function () {
         doc.lines.splice(Number(btn.getAttribute("data-del-line")), 1);
-        scheduleSave(doc); renderCountDoc(doc);
+        scheduleSave(doc); redrawDoc(doc);
       };
     });
     appEl.querySelectorAll("[data-qty]").forEach(function (btn) {
@@ -504,11 +504,11 @@
         var i = Number(btn.getAttribute("data-qty"));
         var d = Number(btn.getAttribute("data-d"));
         doc.lines[i].qty = Math.max(1, (Number(doc.lines[i].qty) || 1) + d);
-        scheduleSave(doc); renderCountDoc(doc);
+        scheduleSave(doc); redrawDoc(doc);
       };
     });
     appEl.querySelectorAll("[data-line]").forEach(function (el) {
-      el.onchange = el.onblur = function () {
+      el.onchange = function () {
         var i = Number(el.getAttribute("data-line"));
         var field = el.getAttribute("data-field");
         var line = doc.lines[i];
@@ -518,7 +518,7 @@
         } else if (field === "color") {
           line.color = el.value;
         }
-        scheduleSave(doc); renderCountDoc(doc);
+        scheduleSave(doc); redrawDoc(doc);
       };
     });
     var completeBtn = appEl.querySelector("[data-complete]");
@@ -615,7 +615,7 @@
             : '<div class="row-btns"><button class="btn btn-purple" data-pick-cust="1">Choose</button>' +
               '<button class="btn btn-ghost" data-new-cust="1">Create</button></div>') +
         "</div>" +
-        '<div class="search-sticky"><input id="q" placeholder="Search flowers" value="' + esc(q) + '"></div>' +
+        '<div class="search-sticky"><input id="q" placeholder="Search flowers" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="' + esc(q) + '"></div>' +
         resultsHtml +
         (inv.lines.length ? '<h2 class="section-label">Items</h2>' + linesHtml : "") +
         '<div class="card"><h2>Fuel Surcharge (FSC)</h2>' +
@@ -663,7 +663,7 @@
     appEl.querySelectorAll("[data-del-line]").forEach(function (btn) {
       btn.onclick = function () {
         inv.lines.splice(Number(btn.getAttribute("data-del-line")), 1);
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     appEl.querySelectorAll("[data-qty]").forEach(function (btn) {
@@ -671,11 +671,11 @@
         var i = Number(btn.getAttribute("data-qty"));
         var d = Number(btn.getAttribute("data-d"));
         inv.lines[i].qty = Math.max(1, (Number(inv.lines[i].qty) || 1) + d);
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     appEl.querySelectorAll("[data-line]").forEach(function (el) {
-      el.onchange = el.onblur = function () {
+      el.onchange = function () {
         var i = Number(el.getAttribute("data-line"));
         var field = el.getAttribute("data-field");
         var line = inv.lines[i];
@@ -696,14 +696,14 @@
         } else if (field === "discountDollar") {
           line.discountDollar = Math.max(0, parseFloat(el.value) || 0);
         }
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     appEl.querySelectorAll("[data-dmode]").forEach(function (btn) {
       btn.onclick = function () {
         var i = Number(btn.getAttribute("data-dmode"));
         inv.lines[i].discountMode = btn.getAttribute("data-m");
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     appEl.querySelectorAll("[data-fsc]").forEach(function (btn) {
@@ -712,13 +712,13 @@
         if (inv.fscChoice === "yes" && (inv.fscAmount == null || inv.fscAmount === "")) {
           inv.fscAmount = settings().fscDefault;
         }
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     appEl.querySelectorAll("[data-pay]").forEach(function (btn) {
       btn.onclick = function () {
         inv.payment = btn.getAttribute("data-pay");
-        scheduleSave(inv); renderInvoice(inv);
+        scheduleSave(inv); redrawDoc(inv);
       };
     });
     var pick = appEl.querySelector("[data-pick-cust]");
@@ -755,17 +755,45 @@
     state.search = "";
     state.flashLine = line.id;
     scheduleSave(inv);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     if (isCountDoc(inv)) renderCountDoc(inv);
     else renderInvoice(inv);
+    var flash = document.querySelector(".line.flash");
+    if (flash && flash.scrollIntoView) flash.scrollIntoView({ block: "center", behavior: "instant" });
     setTimeout(function () { state.flashLine = null; }, 800);
   }
 
+  function keepScroll() {
+    return window.scrollY || document.documentElement.scrollTop || 0;
+  }
+  function restoreScroll(y) {
+    requestAnimationFrame(function () {
+      window.scrollTo(0, y);
+      if (document.activeElement && document.activeElement.id === "q") {
+        document.activeElement.blur();
+      }
+    });
+  }
+  function redrawDoc(inv) {
+    var y = keepScroll();
+    if (document.activeElement && document.activeElement.blur) {
+      var a = document.activeElement;
+      if (a.id === "q") a.blur();
+    }
+    if (isCountDoc(inv)) renderCountDoc(inv);
+    else renderInvoice(inv);
+    restoreScroll(y);
+  }
   function bindSearch() {
     var q = document.getElementById("q");
     if (!q) return;
-    q.focus();
+    q.setAttribute("autocomplete", "off");
+    q.setAttribute("autocorrect", "off");
+    q.setAttribute("spellcheck", "false");
+    q.setAttribute("enterkeyhint", "search");
     q.addEventListener("input", function () {
       state.search = q.value;
+      var caret = q.selectionStart;
       var h = location.hash;
       if (h.indexOf("customers") !== -1) renderCustomers();
       else {
@@ -777,10 +805,10 @@
         }
       }
       var q2 = document.getElementById("q");
-      if (q2) {
+      if (q2 && (state.search || "").length) {
         q2.focus();
-        var len = q2.value.length;
-        q2.setSelectionRange(len, len);
+        var pos = Math.min(caret == null ? q2.value.length : caret, q2.value.length);
+        try { q2.setSelectionRange(pos, pos); } catch (e) {}
       }
     });
   }
